@@ -65,38 +65,39 @@
 
 **思路**
 
-- `lookup: 原节点 → 克隆节点` 的字典，兼具**备忘录**与**防环**作用；
-- **先登记、再递归**：`lookup[node] = clone` 必须先于遍历邻居执行；
-- 遍历原邻居：已克隆 → `return lookup[neighbor]` 复用；未克隆 → 递归新建；
-- 按原顺序 `append`，保持邻居顺序。
+- `lookup`：`原节点 → 克隆节点` 的字典，兼具**备忘录**与**防环**作用；
+- 入口统一判空：`u is None` → 返回 `None`（原图为空、或递归到不存在的邻居时都走这一支）；
+- **先登记、再递归**：`lookup[u] = clone` 必须先于遍历邻居执行，否则自环 / 回边会无限递归；
+- 用 `Node(u.val)` 建克隆（邻居列表走默认空值），再按原顺序把克隆邻居 `append` 进去，保持邻居顺序；
+- 邻居已在 `lookup` 里 → 直接复用同一份克隆，不重复新建。
 
 **完整代码**
 
 ```python
 from typing import Optional
 
-class Node:
-    def __init__(self, val=0, neighbors=None):
-        self.val = val
-        self.neighbors = neighbors if neighbors is not None else []
 
 class Solution:
-    def cloneGraph(self, node: Optional["Node"]) -> Optional["Node"]:
+    def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
         lookup = {}
 
-        def dfs(node):
-            if not node:
+        def dfs(u: Optional['Node']) -> Optional['Node']:
+            if u is None:
                 return None
-            if node in lookup:
-                return lookup[node]
-            clone = Node(node.val, [])
-            lookup[node] = clone          # 先登记（防环的关键）
-            for n in node.neighbors:
-                clone.neighbors.append(dfs(n))
+            if u in lookup:
+                return lookup[u]
+
+            clone = Node(u.val)
+            lookup[u] = clone
+            for v in u.neighbors:
+                clone.neighbors.append(dfs(v))
+
             return clone
 
         return dfs(node)
 ```
+
+> `Node` 由 LeetCode 环境提供（本地运行需自行补上该类的定义）。
 
 **易错点**
 
@@ -110,9 +111,10 @@ class Solution:
 
 **思路**
 
-- 队列里放**原图节点**，出队时遍历其原邻居；
-- 未克隆的邻居：登记克隆并入队；已克隆的：只挂边；
-- 每条边在两个端点出队时各挂一次 → 无向关系完整复制。
+- **入口先判空**：`node is None` → 返回 `None`，其余交给内层 `bfs`；
+- `lookup` 直接以起点预置（`{start: Node(start.val)}`），队列里放**原图节点**；
+- 出队 `u` 时遍历其原邻居 `v`：未克隆 → 建克隆 `Node(v.val)` 登记并入队；随后一律 `lookup[u].neighbors.append(lookup[v])` 挂边；
+- 每条边在两个端点各自出队时各挂一次 → 无向关系完整复制、邻居顺序保持。
 
 **完整代码**
 
@@ -120,29 +122,30 @@ class Solution:
 from typing import Optional
 from collections import deque
 
-class Node:
-    def __init__(self, val=0, neighbors=None):
-        self.val = val
-        self.neighbors = neighbors if neighbors is not None else []
 
 class Solution:
-    def cloneGraph(self, node: Optional["Node"]) -> Optional["Node"]:
-        if not node:
+    def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+        if node is None:
             return None
 
-        lookup = {node: Node(node.val)}   # 原节点 -> 克隆节点
-        queue = deque([node])
+        def bfs(start: Optional['Node']) -> Optional['Node']:
+            lookup = {start: Node(start.val)}
+            queue = deque([start])
 
-        while queue:
-            cur = queue.popleft()
-            for n in cur.neighbors:
-                if n not in lookup:
-                    lookup[n] = Node(n.val)
-                    queue.append(n)
-                lookup[cur].neighbors.append(lookup[n])
+            while queue:
+                u = queue.popleft()
+                for v in u.neighbors:
+                    if v not in lookup:
+                        lookup[v] = Node(v.val)
+                        queue.append(v)
+                    lookup[u].neighbors.append(lookup[v])
 
-        return lookup[node]
+            return lookup[start]
+
+        return bfs(node)
 ```
+
+> `Node` 由 LeetCode 环境提供（本地运行需自行补上该类的定义）。
 
 **易错点（本会话真实踩坑）**
 
